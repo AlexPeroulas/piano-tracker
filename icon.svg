@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#1a1916"/>
+
+  <!-- Gold accent bar -->
+  <rect x="56" y="152" width="400" height="3" rx="1.5" fill="#b8996a"/>
+
+  <!-- White keys (7) -->
+  <rect x="56"  y="162" width="50" height="196" rx="7" fill="#f0ece6"/>
+  <rect x="114" y="162" width="50" height="196" rx="7" fill="#f0ece6"/>
+  <rect x="172" y="162" width="50" height="196" rx="7" fill="#f0ece6"/>
+  <rect x="230" y="162" width="50" height="196" rx="7" fill="#f0ece6"/>
+  <rect x="288" y="162" width="50" height="196" rx="7" fill="#f0ece6"/>
+  <rect x="346" y="162" width="50" height="196" rx="7" fill="#f0ece6"/>
+  <rect x="404" y="162" width="52" height="196" rx="7" fill="#f0ece6"/>
+
+  <!-- Black keys (5 — C# D# F# G# A#) -->
+  <rect x="93"  y="162" width="36" height="118" rx="5" fill="#161412"/>
+  <rect x="151" y="162" width="36" height="118" rx="5" fill="#161412"/>
+  <rect x="265" y="162" width="36" height="118" rx="5" fill="#161412"/>
+  <rect x="323" y="162" width="36" height="118" rx="5" fill="#161412"/>
+  <rect x="381" y="162" width="36" height="118" rx="5" fill="#161412"/>
+
+  <!-- Gold music note (head + stem + flag) -->
+  <ellipse cx="254" cy="108" rx="24" ry="17" fill="#b8996a" transform="rotate(-18 254 108)"/>
+  <rect x="272" y="52" width="8" height="64" rx="4" fill="#b8996a"/>
+  <path d="M280 52 Q318 44 318 72 Q318 90 280 88" stroke="#b8996a" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

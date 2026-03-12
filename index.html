@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA / iOS -->
+  <meta name="theme-color" content="#1a1916" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Piano" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <title>Piano Repertoire</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@200;300;400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white: #ffffff;
+      --off-white: #fafaf8;
+      --cream: #f5f3ef;
+      --border: #e8e4de;
+      --border-light: #f0ece6;
+      --text: #1a1916;
+      --text-mid: #5a5650;
+      --text-light: #9a9490;
+      --gold: #b8996a;
+      --gold-light: #d4b98a;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 20px rgba(0,0,0,0.07);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.09);
+      --radius: 4px;
+      --radius-lg: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      background: var(--off-white);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Progress bar ── */
+    #progressBar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 2px;
+      width: 0;
+      background: var(--gold);
+      transition: width 0.3s ease, opacity 0.4s ease;
+      opacity: 0;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    #progressBar.active { width: 70%; opacity: 1; }
+    #progressBar.done   { width: 100%; opacity: 0; }
+
+    /* ── Screens ── */
+    #screen-loading,
+    #screen-auth {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--off-white);
+      z-index: 500;
+    }
+    #screen-auth { display: none; }
+    #screen-app  { display: none; }
+
+    /* ── Loading ── */
+    .loading-content { text-align: center; }
+
+    .loading-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 10px;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 28px;
+    }
+
+    .loading-dots { display: flex; justify-content: center; gap: 8px; }
+    .loading-dots span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      animation: dotPulse 1.3s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
+      40%            { opacity: 1;    transform: scale(1);   }
+    }
+
+    /* ── Auth card ── */
+    .auth-card {
+      background: var(--white);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 48px 44px 40px;
+      width: 100%;
+      max-width: 400px;
+      margin: 20px;
+    }
+
+    .auth-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 10px;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .auth-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.9rem;
+      letter-spacing: 0.03em;
+      color: var(--text);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .auth-subtitle {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-light);
+      text-align: center;
+      letter-spacing: 0.02em;
+      margin-bottom: 32px;
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 14px; }
+
+    .auth-error {
+      font-size: 12px;
+      color: #c05050;
+      text-align: center;
+      min-height: 16px;
+      letter-spacing: 0.02em;
+    }
+    .auth-error.success { color: #5a8a5a; }
+
+    .btn-full { width: 100%; padding: 12px 20px; font-size: 12px; }
+
+    .auth-toggle {
+      margin-top: 22px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-light);
+      letter-spacing: 0.02em;
+    }
+
+    .auth-toggle-link {
+      background: none;
+      border: none;
+      color: var(--gold);
+      font-family: 'Jost', sans-serif;
+      font-size: 12px;
+      font-weight: 300;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      padding: 0 3px;
+      transition: color 0.15s;
+    }
+    .auth-toggle-link:hover { color: var(--text); }
+
+    /* ── Header ── */
+    header {
+      background: var(--white);
+      border-bottom: 1px solid var(--border-light);
+      padding: 16px 20px 18px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Row that holds eyebrow (centered) + sign-out (right) */
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 6px;
+    }
+
+    .header-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 10px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 2rem;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    header h1 em { font-style: italic; color: var(--text-mid); }
+
+    .signout-btn {
+      position: absolute;
+      right: 0;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .signout-btn:hover { color: var(--text); border-color: var(--text-mid); }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Search ── */
+    .search-wrap {
+      margin-bottom: 48px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .search-box {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      pointer-events: none;
+    }
+
+    #search {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      border: 1px solid var(--border);
+      border-radius: 40px;
+      background: var(--white);
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 14px;
+      color: var(--text);
+      letter-spacing: 0.02em;
+      outline: none;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #search::placeholder { color: var(--text-light); }
+    #search:focus {
+      border-color: var(--gold-light);
+      box-shadow: 0 0 0 3px rgba(184,153,106,0.1);
+    }
+
+    /* ── Sections ── */
+    .sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    @media (max-width: 760px) {
+      .sections { grid-template-columns: 1fr; gap: 32px; }
+    }
+
+    .section-panel {
+      background: var(--white);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 24px 28px 20px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 400;
+      font-size: 1.25rem;
+      letter-spacing: 0.03em;
+      color: var(--text);
+    }
+
+    .section-accent {
+      display: inline-block;
+      width: 22px;
+      height: 1px;
+      background: var(--gold);
+      margin-bottom: 3px;
+    }
+
+    .song-count {
+      font-size: 11px;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      color: var(--text-light);
+      margin-left: auto;
+    }
+
+    /* ── Song list ── */
+    .song-list { padding: 16px 0; min-height: 60px; }
+
+    .empty-state {
+      padding: 28px;
+      text-align: center;
+      color: var(--text-light);
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      font-style: italic;
+      font-family: 'Cormorant Garamond', serif;
+    }
+
+    /* ── Song card ── */
+    .song-card {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border-light);
+      transition: background 0.15s;
+      position: relative;
+    }
+    .song-card:last-child { border-bottom: none; }
+    .song-card:hover { background: var(--off-white); }
+
+    .song-card-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding-right: 68px;
+    }
+
+    .song-title-group { flex: 1; min-width: 0; }
+
+    .song-title-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text);
+      letter-spacing: 0.01em;
+      line-height: 1.3;
+      display: block;
+    }
+
+    .song-composer-text {
+      font-size: 11px;
+      font-weight: 300;
+      color: var(--text-light);
+      letter-spacing: 0.05em;
+      display: block;
+      margin-top: 1px;
+    }
+
+    /* ── Difficulty badges ── */
+    .difficulty-badge {
+      font-size: 9px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+    .difficulty-badge.beginner          { background: #eef6ee; color: #5a8a5a; border: 1px solid #cce5cc; }
+    .difficulty-badge.elementary        { background: #eaf5f3; color: #3d8078; border: 1px solid #b8deda; }
+    .difficulty-badge.intermediate      { background: #fdf5e8; color: #9a7030; border: 1px solid #e8d5a8; }
+    .difficulty-badge.upper-intermediate{ background: #fdf0e4; color: #9a5a28; border: 1px solid #e8c8a0; }
+    .difficulty-badge.advanced          { background: #f5eef5; color: #7a4a8a; border: 1px solid #d8c0e0; }
+    .difficulty-badge.concert           { background: #eeeef8; color: #3a3a7a; border: 1px solid #b8b8d8; }
+
+    .song-meta {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .song-notes {
+      font-size: 12px;
+      color: var(--text-mid);
+      font-weight: 300;
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+      font-style: italic;
+      flex: 1;
+    }
+
+    .song-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+      color: var(--gold);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .song-link:hover { color: var(--text); }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .song-card:hover .card-actions { opacity: 1; }
+    @media (hover: none) { .card-actions { opacity: 1; } }
+
+    .btn-icon {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-light);
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-icon:hover { border-color: var(--text-mid); color: var(--text); }
+    .btn-icon.delete:hover { border-color: #d4706a; color: #d4706a; background: #fdf4f4; }
+
+    /* ── Add form ── */
+    .add-form-wrap {
+      border-top: 1px solid var(--border-light);
+      padding: 20px 28px;
+      background: var(--cream);
+    }
+
+    .add-trigger {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+    .add-trigger:hover { color: var(--text); }
+
+    .add-form { display: none; margin-top: 16px; flex-direction: column; gap: 12px; }
+    .add-form.open { display: flex; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    @media (max-width: 500px) {
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    }
+
+    .form-field { display: flex; flex-direction: column; gap: 5px; }
+    .form-field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-light);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="url"],
+    select,
+    textarea {
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      outline: none;
+      letter-spacing: 0.02em;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+    textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--gold-light);
+      box-shadow: 0 0 0 3px rgba(184,153,106,0.1);
+    }
+
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a9490' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    .btn {
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: var(--radius);
+      padding: 9px 20px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-primary { background: var(--text); color: var(--white); }
+    .btn-primary:not(:disabled):hover { background: var(--gold); box-shadow: var(--shadow-sm); }
+
+    .btn-ghost { background: none; color: var(--text-mid); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--text-mid); color: var(--text); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20,18,14,0.35);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 500px;
+      padding: 36px 36px 28px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.3rem;
+      letter-spacing: 0.04em;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+
+    .modal-form { display: flex; flex-direction: column; gap: 14px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+
+    /* ── No results ── */
+    .no-results {
+      text-align: center;
+      padding: 64px 24px;
+      color: var(--text-light);
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      display: none;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="progressBar"></div>
+
+<!-- ════════════════════════════════════
+     LOADING SCREEN
+════════════════════════════════════ -->
+<div id="screen-loading">
+  <div class="loading-content">
+    <div class="loading-eyebrow">Piano Repertoire</div>
+    <div class="loading-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     AUTH SCREEN
+════════════════════════════════════ -->
+<div id="screen-auth">
+  <div class="auth-card">
+    <div class="auth-eyebrow">Piano Repertoire</div>
+    <h2 class="auth-title" id="auth-title">Welcome back</h2>
+    <p class="auth-subtitle" id="auth-subtitle">Sign in to access your repertoire</p>
+
+    <div class="auth-form">
+      <div class="form-field">
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" placeholder="your@email.com" autocomplete="email" />
+      </div>
+      <div class="form-field">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <p class="auth-error" id="auth-error"></p>
+      <button class="btn btn-primary btn-full" id="auth-submit" onclick="handleAuth()">Sign In</button>
+    </div>
+
+    <div class="auth-toggle">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <button class="auth-toggle-link" onclick="toggleAuthMode()">
+        <span id="auth-toggle-label">Sign up</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     APP SCREEN
+════════════════════════════════════ -->
+<div id="screen-app">
+
+  <header>
+    <!-- Eyebrow row: centered label + sign-out pinned right -->
+    <div class="header-row">
+      <div class="header-eyebrow">Piano Repertoire</div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+    <h1>My <em>Musical Journey</em></h1>
+  </header>
+
+  <main>
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="search" placeholder="Search your repertoire..." autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="no-results" id="noResults">No songs match your search.</div>
+
+    <div class="sections">
+
+      <!-- ── Songs I Know ── -->
+      <div class="section-panel">
+        <div class="section-header">
+          <span class="section-accent"></span>
+          <span class="section-title">Songs I Know</span>
+          <span class="song-count" id="count-know">0 songs</span>
+        </div>
+        <div class="song-list" id="list-know">
+          <div class="empty-state">Your repertoire awaits.</div>
+        </div>
+        <div class="add-form-wrap">
+          <button class="add-trigger" onclick="toggleForm('know')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add a song
+          </button>
+          <div class="add-form" id="form-know">
+            <div class="form-row">
+              <div class="form-field">
+                <label>Song Title</label>
+                <input type="text" id="know-title" placeholder="e.g. Clair de Lune" />
+              </div>
+              <div class="form-field">
+                <label>Composer</label>
+                <input type="text" id="know-composer" placeholder="e.g. Debussy" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Difficulty</label>
+                <select id="know-difficulty">
+                  <option value="beginner">Beginner</option>
+                  <option value="elementary">Elementary</option>
+                  <option value="intermediate" selected>Intermediate</option>
+                  <option value="upper-intermediate">Upper Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="concert">Concert Level</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>YouTube Link</label>
+                <input type="url" id="know-url" placeholder="https://youtube.com/..." />
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Personal Notes</label>
+              <textarea id="know-notes" placeholder="Tempo, expression marks, what to practise…"></textarea>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-ghost" onclick="toggleForm('know')">Cancel</button>
+              <button class="btn btn-primary" id="know-submit" onclick="addSong('know')">Add Song</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── My Wishlist ── -->
+      <div class="section-panel">
+        <div class="section-header">
+          <span class="section-accent"></span>
+          <span class="section-title">My Wishlist</span>
+          <span class="song-count" id="count-wish">0 songs</span>
+        </div>
+        <div class="song-list" id="list-wish">
+          <div class="empty-state">Songs you dream of playing.</div>
+        </div>
+        <div class="add-form-wrap">
+          <button class="add-trigger" onclick="toggleForm('wish')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add a song
+          </button>
+          <div class="add-form" id="form-wish">
+            <div class="form-row">
+              <div class="form-field">
+                <label>Song Title</label>
+                <input type="text" id="wish-title" placeholder="e.g. Ballade No. 1" />
+              </div>
+              <div class="form-field">
+                <label>Composer</label>
+                <input type="text" id="wish-composer" placeholder="e.g. Chopin" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Difficulty</label>
+                <select id="wish-difficulty">
+                  <option value="beginner">Beginner</option>
+                  <option value="elementary">Elementary</option>
+                  <option value="intermediate" selected>Intermediate</option>
+                  <option value="upper-intermediate">Upper Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="concert">Concert Level</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>YouTube Link</label>
+                <input type="url" id="wish-url" placeholder="https://youtube.com/..." />
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Personal Notes</label>
+              <textarea id="wish-notes" placeholder="Why you want to learn it, inspiration…"></textarea>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-ghost" onclick="toggleForm('wish')">Cancel</button>
+              <button class="btn btn-primary" id="wish-submit" onclick="addSong('wish')">Add Song</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sections -->
+  </main>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-title">Edit Song</div>
+      <div class="modal-form">
+        <input type="hidden" id="edit-id" />
+        <input type="hidden" id="edit-section" />
+        <div class="form-row">
+          <div class="form-field">
+            <label>Song Title</label>
+            <input type="text" id="edit-title" />
+          </div>
+          <div class="form-field">
+            <label>Composer</label>
+            <input type="text" id="edit-composer" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Difficulty</label>
+            <select id="edit-difficulty">
+              <option value="beginner">Beginner</option>
+              <option value="elementary">Elementary</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="upper-intermediate">Upper Intermediate</option>
+              <option value="advanced">Advanced</option>
+              <option value="concert">Concert Level</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>YouTube Link</label>
+            <input type="url" id="edit-url" />
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Personal Notes</label>
+          <textarea id="edit-notes"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /screen-app -->
+
+<script>
+  const SUPABASE_URL      = 'https://rbpmseqhmluxmelcapdm.supabase.co/';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJicG1zZXFobWx1eG1lbGNhcGRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NzgyNjksImV4cCI6MjA4ODM1NDI2OX0.FuULXWYVi7c9IuN2iOFex2ubwTGFd8YGVG9TjosBisU';
+
+  const { createClient } = window.supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ── State ──
+  let currentUser = null;
+  let songs       = { know: [], wish: [] };
+  let searchQuery = '';
+  let authMode    = 'signin';
+
+  const DIFFICULTY_LABEL = {
+    'beginner':          'Beginner',
+    'elementary':        'Elementary',
+    'intermediate':      'Intermediate',
+    'upper-intermediate':'Upper Interm.',
+    'advanced':          'Advanced',
+    'concert':           'Concert',
+  };
+
+  // ── Progress bar ──
+  function setLoading(on) {
+    const bar = document.getElementById('progressBar');
+    if (on) {
+      bar.classList.remove('done');
+      bar.classList.add('active');
+    } else {
+      bar.classList.remove('active');
+      bar.classList.add('done');
+      setTimeout(() => bar.classList.remove('done'), 500);
+    }
+  }
+
+  // ── Screen routing ──
+  function showScreen(name) {
+    document.getElementById('screen-loading').style.display = name === 'loading' ? 'flex'  : 'none';
+    document.getElementById('screen-auth').style.display    = name === 'auth'    ? 'flex'  : 'none';
+    document.getElementById('screen-app').style.display     = name === 'app'     ? 'block' : 'none';
+  }
+
+  // ── Init ──
+  async function init() {
+    showScreen('loading');
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      await loadSongs();
+      showScreen('app');
+    } else {
+      showScreen('auth');
+    }
+
+    db.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        currentUser = session.user;
+        await loadSongs();
+        showScreen('app');
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        songs = { know: [], wish: [] };
+        showScreen('auth');
+      }
+    });
+  }
+
+  // ════════════════════════════════
+  //  AUTH
+  // ════════════════════════════════
+  async function handleAuth() {
+    const email    = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl    = document.getElementById('auth-error');
+    errEl.textContent = '';
+    errEl.className   = 'auth-error';
+
+    if (!email || !password) {
+      errEl.textContent = 'Please enter your email and password.';
+      return;
+    }
+
+    const btn = document.getElementById('auth-submit');
+    btn.disabled    = true;
+    btn.textContent = authMode === 'signin' ? 'Signing in…' : 'Creating account…';
+
+    try {
+      let result;
+      if (authMode === 'signin') {
+        result = await db.auth.signInWithPassword({ email, password });
+      } else {
+        result = await db.auth.signUp({ email, password });
+      }
+
+      if (result.error) {
+        errEl.textContent = result.error.message;
+      } else if (authMode === 'signup' && result.data.user && !result.data.session) {
+        errEl.className   = 'auth-error success';
+        errEl.textContent = 'Check your email for a confirmation link, then sign in.';
+      }
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = authMode === 'signin' ? 'Sign In' : 'Create Account';
+    }
+  }
+
+  function toggleAuthMode() {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    const isSignIn = authMode === 'signin';
+    document.getElementById('auth-title').textContent       = isSignIn ? 'Welcome back'                     : 'Create account';
+    document.getElementById('auth-subtitle').textContent    = isSignIn ? 'Sign in to access your repertoire' : 'Start tracking your piano journey';
+    document.getElementById('auth-submit').textContent      = isSignIn ? 'Sign In'                          : 'Create Account';
+    document.getElementById('auth-toggle-text').textContent = isSignIn ? "Don't have an account?"           : 'Already have an account?';
+    document.getElementById('auth-toggle-label').textContent= isSignIn ? 'Sign up'                         : 'Sign in';
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+    errEl.className   = 'auth-error';
+  }
+
+  async function signOut() {
+    await db.auth.signOut();
+  }
+
+  // ════════════════════════════════
+  //  DATA — Supabase CRUD
+  // ════════════════════════════════
+  async function loadSongs() {
+    setLoading(true);
+    try {
+      const { data, error } = await db
+        .from('songs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) { console.error('Load error:', error); return; }
+      songs = { know: [], wish: [] };
+      (data || []).forEach(s => {
+        if (s.section === 'know' || s.section === 'wish') songs[s.section].push(s);
+      });
+      render();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addSong(section) {
+    const titleEl = document.getElementById(section + '-title');
+    const title   = titleEl.value.trim();
+    if (!title) { titleEl.focus(); return; }
+
+    const submitBtn = document.getElementById(section + '-submit');
+    submitBtn.disabled = true;
+    setLoading(true);
+
+    try {
+      const { data, error } = await db
+        .from('songs')
+        .insert({
+          section,
+          title,
+          composer:   document.getElementById(section + '-composer').value.trim(),
+          difficulty: document.getElementById(section + '-difficulty').value,
+          url:        document.getElementById(section + '-url').value.trim(),
+          notes:      document.getElementById(section + '-notes').value.trim(),
+        })
+        .select()
+        .single();
+
+      if (error) { alert('Could not save song: ' + error.message); return; }
+
+      songs[section].unshift(data);
+      ['title', 'composer', 'url', 'notes'].forEach(f =>
+        document.getElementById(section + '-' + f).value = ''
+      );
+      document.getElementById(section + '-difficulty').value = 'intermediate';
+      toggleForm(section);
+      render();
+    } finally {
+      setLoading(false);
+      submitBtn.disabled = false;
+    }
+  }
+
+  async function deleteSong(id, section) {
+    setLoading(true);
+    try {
+      const { error } = await db.from('songs').delete().eq('id', id);
+      if (error) { alert('Could not delete song: ' + error.message); return; }
+      songs[section] = songs[section].filter(s => s.id !== id);
+      render();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveEdit() {
+    const id      = document.getElementById('edit-id').value;
+    const section = document.getElementById('edit-section').value;
+    const title   = document.getElementById('edit-title').value.trim();
+    if (!title) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await db
+        .from('songs')
+        .update({
+          title,
+          composer:   document.getElementById('edit-composer').value.trim(),
+          difficulty: document.getElementById('edit-difficulty').value,
+          url:        document.getElementById('edit-url').value.trim(),
+          notes:      document.getElementById('edit-notes').value.trim(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) { alert('Could not update song: ' + error.message); return; }
+
+      const idx = songs[section].findIndex(s => s.id === id);
+      if (idx !== -1) songs[section][idx] = data;
+      closeModal();
+      render();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ════════════════════════════════
+  //  RENDER
+  // ════════════════════════════════
+  function render() {
+    const q = searchQuery.toLowerCase().trim();
+    let totalVisible = 0;
+
+    ['know', 'wish'].forEach(section => {
+      const list    = document.getElementById('list-' + section);
+      const countEl = document.getElementById('count-' + section);
+      const all     = songs[section];
+
+      const filtered = q
+        ? all.filter(s =>
+            s.title.toLowerCase().includes(q) ||
+            (s.composer || '').toLowerCase().includes(q) ||
+            (s.notes    || '').toLowerCase().includes(q) ||
+            s.difficulty.toLowerCase().includes(q)
+          )
+        : all;
+
+      countEl.textContent = all.length + ' song' + (all.length !== 1 ? 's' : '');
+
+      if (filtered.length === 0) {
+        const msg = all.length === 0
+          ? (section === 'know' ? 'Your repertoire awaits.' : 'Songs you dream of playing.')
+          : 'No matches in this section.';
+        list.innerHTML = `<div class="empty-state">${msg}</div>`;
+      } else {
+        totalVisible += filtered.length;
+        list.innerHTML = filtered.map(s => renderCard(s, section)).join('');
+      }
+    });
+
+    const noResults = document.getElementById('noResults');
+    const sections  = document.querySelector('.sections');
+    if (q && totalVisible === 0) {
+      noResults.style.display = 'block';
+      sections.style.opacity  = '0.4';
+    } else {
+      noResults.style.display = 'none';
+      sections.style.opacity  = '1';
+    }
+  }
+
+  function renderCard(song, section) {
+    const hasLink     = song.url      && song.url.trim();
+    const hasNotes    = song.notes    && song.notes.trim();
+    const hasComposer = song.composer && song.composer.trim();
+    const label       = DIFFICULTY_LABEL[song.difficulty] || song.difficulty;
+
+    return `
+      <div class="song-card">
+        <div class="card-actions">
+          <button class="btn-icon" title="Edit" onclick="openEdit('${song.id}','${section}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="btn-icon delete" title="Delete" onclick="deleteSong('${song.id}','${section}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="song-card-top">
+          <div class="song-title-group">
+            <span class="song-title-text">${esc(song.title)}</span>
+            ${hasComposer ? `<span class="song-composer-text">${esc(song.composer)}</span>` : ''}
+          </div>
+          <span class="difficulty-badge ${song.difficulty}">${label}</span>
+        </div>
+        ${hasNotes || hasLink ? `
+        <div class="song-meta">
+          ${hasNotes ? `<span class="song-notes">${esc(song.notes)}</span>` : ''}
+          ${hasLink  ? `<a class="song-link" href="${escAttr(song.url)}" target="_blank" rel="noopener">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+              <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/>
+            </svg>Watch</a>` : ''}
+        </div>` : ''}
+      </div>`;
+  }
+
+  function esc(s)     { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escAttr(s) { return (s||'').replace(/"/g,'&quot;'); }
+
+  // ════════════════════════════════
+  //  UI interactions
+  // ════════════════════════════════
+  function toggleForm(section) {
+    const form   = document.getElementById('form-' + section);
+    const isOpen = form.classList.contains('open');
+    form.classList.toggle('open', !isOpen);
+    if (!isOpen) setTimeout(() => document.getElementById(section + '-title').focus(), 50);
+  }
+
+  function openEdit(id, section) {
+    const song = songs[section].find(s => s.id === id);
+    if (!song) return;
+    document.getElementById('edit-id').value         = id;
+    document.getElementById('edit-section').value    = section;
+    document.getElementById('edit-title').value      = song.title;
+    document.getElementById('edit-composer').value   = song.composer  || '';
+    document.getElementById('edit-difficulty').value = song.difficulty;
+    document.getElementById('edit-url').value        = song.url       || '';
+    document.getElementById('edit-notes').value      = song.notes     || '';
+    document.getElementById('editModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('editModal').classList.remove('open');
+  }
+
+  // ── Event listeners ──
+  document.getElementById('search').addEventListener('input', function () {
+    searchQuery = this.value;
+    render();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.querySelectorAll('.add-form.open').forEach(f => f.classList.remove('open'));
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if (document.getElementById('editModal').classList.contains('open')) saveEdit();
+    }
+    if (e.key === 'Enter' && document.getElementById('screen-auth').style.display !== 'none') {
+      handleAuth();
+    }
+  });
+
+  document.getElementById('editModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('editModal')) closeModal();
+  });
+
+  ['know', 'wish'].forEach(s => {
+    document.getElementById(s + '-title').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addSong(s);
+    });
+  });
+
+  // ── Service worker ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
+  }
+
+  init();
+</script>
+</body>
+</html>
