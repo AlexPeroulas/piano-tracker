@@ -2,9 +2,10 @@
 
 A mobile-first progressive web app for keeping track of piano songs you want to learn and songs you've already learned.
 
-**Live:** [your-vercel-link.vercel.app](https://your-vercel-link.vercel.app)
+**Live:** https://elegant-tarsier-3a9cdd.netlify.app/
 
-![Screenshot](screenshot.png)
+<img width="2854" height="1452" alt="image" src="https://github.com/user-attachments/assets/97fedcea-d970-4930-afe7-f5d31a0fbb79" />
+
 
 ## Features
 - Sign up and log in with Supabase Auth
