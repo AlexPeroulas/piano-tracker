@@ -4,6 +4,7 @@ A mobile-first progressive web app for keeping track of piano songs you want to 
 
 **Live:** https://elegant-tarsier-3a9cdd.netlify.app/
 
+<img width="1736" height="1300" alt="image" src="https://github.com/user-attachments/assets/8d53b74c-0140-4b52-9eb1-3d007151500c" />
 <img width="2854" height="1452" alt="image" src="https://github.com/user-attachments/assets/97fedcea-d970-4930-afe7-f5d31a0fbb79" />
 
 
